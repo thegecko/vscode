@@ -1007,11 +1007,6 @@ declare module 'vscode' {
 		executionOrder?: number;
 	}
 
-	export enum NotebookRunState {
-		Running = 1,
-		Idle = 2
-	}
-
 	// TODO@API
 	// make this a class, allow modified using with-pattern
 	export interface NotebookCellMetadata {
@@ -1052,7 +1047,6 @@ declare module 'vscode' {
 		readonly language: string;
 		readonly outputs: readonly NotebookCellOutput[];
 		readonly metadata: NotebookCellMetadata;
-		readonly previousResult: NotebookCellPreviousRunResult;
 		/** @deprecated use WorkspaceEdit.replaceCellOutput */
 		// outputs: CellOutput[];
 		// readonly outputs2: NotebookCellOutput[];
@@ -1245,6 +1239,12 @@ declare module 'vscode' {
 		readonly visibleRanges: ReadonlyArray<NotebookCellRange>;
 	}
 
+	export interface NotebookCellRunStateChangeEvent {
+		readonly document: NotebookDocument;
+		readonly cell: NotebookCell;
+		readonly runState: NotebookCellRunState;
+	}
+
 	// todo@API support ids https://github.com/jupyter/enhancement-proposals/blob/master/62-cell-id/cell-id.md
 	export interface NotebookCellData {
 		readonly cellKind: NotebookCellKind;
@@ -1253,6 +1253,7 @@ declare module 'vscode' {
 		// todo@API maybe use a separate data type?
 		readonly outputs: NotebookCellOutput[];
 		readonly metadata: NotebookCellMetadata | undefined;
+		readonly previousResult: NotebookCellPreviousRunResult;
 	}
 
 	export interface NotebookData {
@@ -1508,11 +1509,6 @@ declare module 'vscode' {
 		 * Defaults to true.
 		 */
 		cellHasExecutionOrder?: boolean;
-
-		/**
-		 * The document's current run state
-		 */
-		runState?: NotebookRunState;
 	}
 
 	export interface NotebookCellMetadata {
@@ -1535,11 +1531,6 @@ declare module 'vscode' {
 		 */
 		// todo@API duplicates status bar API
 		statusMessage?: string;
-
-		/**
-		 * The result of the previous run, if the cell has been executed.
-		 * Content provider can provide details of previous run but not current run
-		 */
 	}
 
 	export interface NotebookKernel {
@@ -1561,11 +1552,7 @@ declare module 'vscode' {
 		// todo@API how can Jupyter ensure that the document-level cancel button shows whenever any cell is running?
 		// Maybe this behavior is automatic for any kernel that implements interrupt
 		interrupt?(): void;
-		executeCells(document: NotebookDocument, cells: NotebookCellRange[], cellPending: NotebookCellPending): void;
-		// executeCell(document: NotebookDocument, cell: NotebookCell): void;
-		// cancelCellExecution(document: NotebookDocument, cell: NotebookCell): void;
-		// executeAllCells(document: NotebookDocument): void;
-		// cancelAllCellsExecution(document: NotebookDocument): void;
+		executeCells(document: NotebookDocument, cells: NotebookCellRange[]): void;
 	}
 
 	// todo@API use the NotebookCellExecution-object as a container to model and enforce
@@ -1577,25 +1564,32 @@ declare module 'vscode' {
 	// exec.dispose();
 
 	export interface NotebookCellExecution {
-		resolve(result: NotebookCellPreviousRunResult): void; // or just stop time, extension can set error outputs or not, and return a success bool
+		start(): void; // Alternative to Pending object
+		resolve(result: NotebookCellPreviousRunResult): void;
+		token: CancellationToken;
+
 		clearOutput(): void;
-		appendOutput(out: NotebookCellOutput): void;
-		replaceOutput(out: NotebookCellOutput): void;
-		appendOutputItems(output: string, items: NotebookCellOutputItem[]): void;
-		replaceOutputItems(output: string, items: NotebookCellOutputItem[]): void;
-		token: CancellationToken;
+		appendOutput(out: NotebookCellOutput[]): void;
+		replaceOutput(out: NotebookCellOutput[]): void;
+		appendOutputItems(outputId: string, items: NotebookCellOutputItem[]): void;
+		replaceOutputItems(outputId: string, items: NotebookCellOutputItem[]): void;
 	}
 
-	export interface NotebookCellPending {
-		start(): NotebookCellExecution; // throws if called twice
-		resolve(): void;
-		token: CancellationToken;
+	export enum NotebookCellRunState {
+		Idle,
+		Pending,
+		Running
 	}
 
-	export function createNotebookCellExecution(cell: NotebookCell, startTime?: number): NotebookCellPending;
+	export interface NotebookCellExecutionStartContext {
+		startTime?: number;
+		executionOrder?: number;
+	}
 
-	// todo@API who needs this event?
-	export const onDidChangeNotebookCellExecutionState: Event<{ cell: NotebookCell, state: any }>; // idle -> pending -> executing -> idle
+	export namespace notebook {
+		export function createNotebookCellExecution(uri: Uri, index: number, context?: NotebookCellExecutionStartContext): NotebookCellExecution;
+		export const onDidChangeNotebookCellExecutionState: Event<NotebookCellRunStateChangeEvent>;
+	}
 
 	export type NotebookFilenamePattern = GlobPattern | { include: GlobPattern; exclude: GlobPattern; };
 
