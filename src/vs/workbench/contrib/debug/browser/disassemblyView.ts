@@ -25,7 +25,7 @@ import { localize } from 'vs/nls';
 import { IConfigurationService } from 'vs/platform/configuration/common/configuration';
 import { IContextKey, IContextKeyService } from 'vs/platform/contextkey/common/contextkey';
 import { TextEditorSelectionRevealType } from 'vs/platform/editor/common/editor';
-import { IInstantiationService } from 'vs/platform/instantiation/common/instantiation';
+import { IInstantiationService, ServicesAccessor } from 'vs/platform/instantiation/common/instantiation';
 import { WorkbenchTable } from 'vs/platform/list/browser/listService';
 import { ILogService } from 'vs/platform/log/common/log';
 import { IStorageService } from 'vs/platform/storage/common/storage';
@@ -45,6 +45,9 @@ import { IEditorService } from 'vs/workbench/services/editor/common/editorServic
 import { IEditorGroup } from 'vs/workbench/services/editor/common/editorGroupsService';
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
 import { MenuId } from 'vs/platform/actions/common/actions';
+import { CommandsRegistry } from 'vs/platform/commands/common/commands';
+import { COPY_ADDRESS_ID, COPY_ADDRESS_LABEL } from 'vs/workbench/contrib/debug/browser/debugCommands';
+import { IClipboardService } from 'vs/platform/clipboard/common/clipboardService';
 
 interface IDisassembledInstructionEntry {
 	allowBreakpoint: boolean;
@@ -1027,3 +1030,16 @@ export class DisassemblyViewContribution implements IWorkbenchContribution {
 		this._onDidChangeModelLanguage?.dispose();
 	}
 }
+
+CommandsRegistry.registerCommand({
+	metadata: {
+		description: COPY_ADDRESS_LABEL,
+	},
+	id: COPY_ADDRESS_ID,
+	handler: async (accessor: ServicesAccessor, arg?: IDisassembledInstructionLocation) => {
+		if (arg && arg.address) {
+			const clipboardService = accessor.get(IClipboardService);
+			clipboardService.writeText('0x' + arg.address.toString(16));
+		}
+	}
+});
