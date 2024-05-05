@@ -453,6 +453,12 @@ const apiMenus: IAPIMenu[] = [
 		id: MenuId.DiffEditorSelectionToolbar,
 		description: localize('menus.diffEditorGutterToolBarMenus', "The gutter toolbar in the diff editor"),
 		proposed: 'contribDiffEditorGutterToolBarMenus'
+	},
+	{
+		key: 'disassembly/context',
+		id: MenuId.DebugDisassemblyContext,
+		description: localize('disassembly.context', "The disassembly context menu"),
+		proposed: 'debugContext'
 	}
 ];
 

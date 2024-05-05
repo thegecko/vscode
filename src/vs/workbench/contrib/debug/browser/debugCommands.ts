@@ -38,6 +38,7 @@ import { TEXT_FILE_EDITOR_ID } from 'vs/workbench/contrib/files/common/files';
 import { ILocalizedString } from 'vs/platform/action/common/action';
 
 export const ADD_CONFIGURATION_ID = 'debug.addConfiguration';
+export const TOGGLE_BREAKPOINT_ID = 'editor.debug.action.toggleBreakpoint';
 export const TOGGLE_INLINE_BREAKPOINT_ID = 'editor.debug.action.toggleInlineBreakpoint';
 export const COPY_STACK_TRACE_ID = 'debug.copyStackTrace';
 export const REVERSE_CONTINUE_ID = 'workbench.action.debug.reverseContinue';

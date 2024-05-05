@@ -43,6 +43,8 @@ import { getUriFromSource } from 'vs/workbench/contrib/debug/common/debugSource'
 import { isUri, sourcesEqual } from 'vs/workbench/contrib/debug/common/debugUtils';
 import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { IEditorGroup } from 'vs/workbench/services/editor/common/editorGroupsService';
+import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
+import { MenuId } from 'vs/platform/actions/common/actions';
 
 interface IDisassembledInstructionEntry {
 	allowBreakpoint: boolean;
@@ -62,6 +64,11 @@ interface IDisassembledInstructionEntry {
 	address: bigint;
 }
 
+export interface IDisassembledInstructionLocation {
+	reference: string;
+	offset: number;
+	address: bigint;
+}
 
 // Special entry as a placeholer when disassembly is not available
 const disassemblyNotAvailable: IDisassembledInstructionEntry = {
@@ -100,6 +107,7 @@ export class DisassemblyView extends EditorPane {
 		@IConfigurationService private readonly _configurationService: IConfigurationService,
 		@IInstantiationService private readonly _instantiationService: IInstantiationService,
 		@IDebugService private readonly _debugService: IDebugService,
+		@IContextMenuService private readonly _contextMenuService: IContextMenuService,
 	) {
 		super(DISASSEMBLY_VIEW_ID, group, telemetryService, themeService, storageService);
 
@@ -174,8 +182,12 @@ export class DisassemblyView extends EditorPane {
 
 	get onDidChangeStackFrame() { return this._onDidChangeStackFrame.event; }
 
-	get focusedAddressAndOffset() {
+	get focusedAddressAndOffset(): IDisassembledInstructionLocation | undefined {
 		const element = this._disassembledInstructions?.getFocusedElements()[0];
+		return this.createLocation(element);
+	}
+
+	protected createLocation(element?: IDisassembledInstructionEntry): IDisassembledInstructionLocation | undefined {
 		if (!element) {
 			return undefined;
 		}
@@ -269,6 +281,16 @@ export class DisassemblyView extends EditorPane {
 				this._loadingLock = true;
 				this.scrollDown_LoadDisassembledInstructions(DisassemblyView.NUM_INSTRUCTIONS_TO_LOAD).then(() => { this._loadingLock = false; });
 			}
+		}));
+
+		this._register(this._disassembledInstructions.onContextMenu(data => {
+			const arg = this.createLocation(data.element);
+			this._contextMenuService.showContextMenu({
+				menuId: MenuId.DebugDisassemblyContext,
+				menuActionOptions: { arg, shouldForwardArgs: true },
+				contextKeyService: this._disassembledInstructions?.contextKeyService,
+				getAnchor: () => data.anchor
+			});
 		}));
 
 		this._register(this._debugService.getViewModel().onDidFocusStackFrame(({ stackFrame }) => {
