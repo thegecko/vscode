@@ -269,13 +269,25 @@ export class BreakpointsView extends ViewPane {
 		this.breakpointIsDataBytes.set(element instanceof DataBreakpoint && element.src.type === DataBreakpointSetType.Address);
 
 		const secondary: IAction[] = [];
-		createAndFillInContextMenuActions(this.menu, { arg: e.element, shouldForwardArgs: false }, { primary: [], secondary }, 'inline');
+		const arg = this.getBreakpoint(element);
+		createAndFillInContextMenuActions(this.menu, { arg, shouldForwardArgs: false }, { primary: [], secondary }, 'inline');
 
 		this.contextMenuService.showContextMenu({
 			getAnchor: () => e.anchor,
 			getActions: () => secondary,
 			getActionsContext: () => element
 		});
+	}
+
+	private getBreakpoint(element?: IEnablement) {
+		if (element instanceof InstructionBreakpoint) {
+			return {
+				...element,
+				address: '0x' + element.address.toString(16)
+			}
+		}
+
+		return element;
 	}
 
 	private updateSize(): void {
@@ -1643,7 +1655,7 @@ registerAction2(class extends Action2 {
 		} else if (breakpoint instanceof DataBreakpoint) {
 			await debugService.removeDataBreakpoints(breakpoint.getId());
 		} else if (breakpoint instanceof InstructionBreakpoint) {
-			await debugService.removeInstructionBreakpoints(breakpoint.instructionReference);
+			await debugService.removeInstructionBreakpoints(breakpoint.instructionReference, breakpoint.offset);
 		}
 	}
 });

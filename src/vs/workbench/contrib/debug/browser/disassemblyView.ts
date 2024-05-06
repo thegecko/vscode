@@ -48,6 +48,7 @@ import { MenuId } from 'vs/platform/actions/common/actions';
 import { CommandsRegistry } from 'vs/platform/commands/common/commands';
 import { COPY_ADDRESS_ID, COPY_ADDRESS_LABEL } from 'vs/workbench/contrib/debug/browser/debugCommands';
 import { IClipboardService } from 'vs/platform/clipboard/common/clipboardService';
+import { Action } from 'vs/base/common/actions';
 
 interface IDisassembledInstructionEntry {
 	allowBreakpoint: boolean;
@@ -67,10 +68,9 @@ interface IDisassembledInstructionEntry {
 	address: bigint;
 }
 
-export interface IDisassembledInstructionLocation {
-	reference: string;
-	offset: number;
-	address: bigint;
+export interface IDisassemblyContext {
+	sessionId: string | undefined;
+	instruction: DebugProtocol.DisassembledInstruction;
 }
 
 // Special entry as a placeholer when disassembly is not available
@@ -185,12 +185,8 @@ export class DisassemblyView extends EditorPane {
 
 	get onDidChangeStackFrame() { return this._onDidChangeStackFrame.event; }
 
-	get focusedAddressAndOffset(): IDisassembledInstructionLocation | undefined {
+	get focusedAddressAndOffset() {
 		const element = this._disassembledInstructions?.getFocusedElements()[0];
-		return this.createLocation(element);
-	}
-
-	protected createLocation(element?: IDisassembledInstructionEntry): IDisassembledInstructionLocation | undefined {
 		if (!element) {
 			return undefined;
 		}
@@ -198,6 +194,17 @@ export class DisassemblyView extends EditorPane {
 		const reference = element.instructionReference;
 		const offset = Number(element.address - this.getReferenceAddress(reference)!);
 		return { reference, offset, address: element.address };
+	}
+
+	protected getInstructionContext(instruction?: IDisassembledInstructionEntry): IDisassemblyContext | undefined {
+		if (!instruction) {
+			return undefined;
+		}
+
+		return {
+			sessionId: this.debugSession?.getId(),
+			instruction: instruction.instruction
+		};
 	}
 
 	protected createEditor(parent: HTMLElement): void {
@@ -287,12 +294,27 @@ export class DisassemblyView extends EditorPane {
 		}));
 
 		this._register(this._disassembledInstructions.onContextMenu(data => {
-			const arg = this.createLocation(data.element);
+			const context = this.getInstructionContext(data.element);
 			this._contextMenuService.showContextMenu({
 				menuId: MenuId.DebugDisassemblyContext,
-				menuActionOptions: { arg, shouldForwardArgs: true },
+				menuActionOptions: { arg: context, shouldForwardArgs: false },
 				contextKeyService: this._disassembledInstructions?.contextKeyService,
-				getAnchor: () => data.anchor
+				getAnchor: () => data.anchor,
+				getActions: () => ([
+					new Action('asdasdasdas', 'poo bag', undefined, true, () => {
+						const location = data.element;
+						if (location) {
+							const offset = Number(location.address - this.getReferenceAddress(location.instructionReference)!);
+							const bps = this._debugService.getModel().getInstructionBreakpoints();
+							const toRemove = bps.find(bp => bp.address === location.address);
+							if (toRemove) {
+								this._debugService.removeInstructionBreakpoints(toRemove.instructionReference, toRemove.offset);
+							} else {
+								this._debugService.addInstructionBreakpoint({ instructionReference: location.instructionReference, offset, address: location.address, canPersist: false });
+							}
+						}
+					})
+				])
 			});
 		}));
 
@@ -1036,10 +1058,10 @@ CommandsRegistry.registerCommand({
 		description: COPY_ADDRESS_LABEL,
 	},
 	id: COPY_ADDRESS_ID,
-	handler: async (accessor: ServicesAccessor, arg?: IDisassembledInstructionLocation) => {
-		if (arg && arg.address) {
+	handler: async (accessor: ServicesAccessor, arg?: IDisassemblyContext) => {
+		if (arg?.instruction?.address) {
 			const clipboardService = accessor.get(IClipboardService);
-			clipboardService.writeText('0x' + arg.address.toString(16));
+			clipboardService.writeText(arg.instruction.address);
 		}
 	}
 });

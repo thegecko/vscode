@@ -111,6 +111,30 @@ const apiMenus: IAPIMenu[] = [
 		description: localize('menus.debugToolBar', "The debug toolbar menu")
 	},
 	{
+		key: 'debug/disassembly/context',
+		id: MenuId.DebugDisassemblyContext,
+		description: localize('menus.debugDisassemblyContext', "The debug disassembly context menu"),
+		proposed: 'debugContext'
+	},
+	{
+		key: 'debug/watch/context',
+		id: MenuId.DebugWatchContext,
+		description: localize('menus.debugWatchContext', "The debug watch context menu"),
+		proposed: 'debugContext'
+	},
+	{
+		key: 'debug/breakpoints/context',
+		id: MenuId.DebugBreakpointsContext,
+		description: localize('menus.debugBreakpointsContext', "The debug breakpoints context menu"),
+		proposed: 'debugContext'
+	},
+	{
+		key: 'debug/console/context',
+		id: MenuId.DebugConsoleContext,
+		description: localize('menus.debugConsoleContext', "The debug console context menu"),
+		proposed: 'debugContext'
+	},
+	{
 		key: 'notebook/variables/context',
 		id: MenuId.NotebookVariablesContext,
 		description: localize('menus.notebookVariablesContext', "The notebook variables view context menu")
@@ -453,12 +477,6 @@ const apiMenus: IAPIMenu[] = [
 		id: MenuId.DiffEditorSelectionToolbar,
 		description: localize('menus.diffEditorGutterToolBarMenus', "The gutter toolbar in the diff editor"),
 		proposed: 'contribDiffEditorGutterToolBarMenus'
-	},
-	{
-		key: 'disassembly/context',
-		id: MenuId.DebugDisassemblyContext,
-		description: localize('disassembly.context', "The disassembly context menu"),
-		proposed: 'debugContext'
 	}
 ];
 
