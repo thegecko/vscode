@@ -46,7 +46,7 @@ import { IEditorGroup } from 'vs/workbench/services/editor/common/editorGroupsSe
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
 import { MenuId } from 'vs/platform/actions/common/actions';
 import { CommandsRegistry } from 'vs/platform/commands/common/commands';
-import { COPY_ADDRESS_ID, COPY_ADDRESS_LABEL } from 'vs/workbench/contrib/debug/browser/debugCommands';
+import { COPY_ADDRESS_ID, COPY_ADDRESS_LABEL, TOGGLE_BREAKPOINT_ID } from 'vs/workbench/contrib/debug/browser/debugCommands';
 import { IClipboardService } from 'vs/platform/clipboard/common/clipboardService';
 import { Action } from 'vs/base/common/actions';
 
@@ -301,7 +301,7 @@ export class DisassemblyView extends EditorPane {
 				contextKeyService: this._disassembledInstructions?.contextKeyService,
 				getAnchor: () => data.anchor,
 				getActions: () => ([
-					new Action('asdasdasdas', 'poo bag', undefined, true, () => {
+					new Action(TOGGLE_BREAKPOINT_ID, 'Toggle Breakpoint', undefined, true, () => {
 						const location = data.element;
 						if (location) {
 							const offset = Number(location.address - this.getReferenceAddress(location.instructionReference)!);

@@ -41,6 +41,16 @@ const MAX_VALUE_RENDER_LENGTH_IN_VIEWLET = 1024;
 let ignoreViewUpdates = false;
 let useCachedEvaluation = false;
 
+export interface IWatchContext {
+	sessionId: string | undefined;
+	expressionId: string;
+	memoryReference?: string;
+	name: string;
+	reference?: number;
+	type?: number;
+	value: string;
+}
+
 export class WatchExpressionsView extends ViewPane {
 
 	private watchExpressionsUpdatedScheduler: RunOnceScheduler;
@@ -214,18 +224,35 @@ export class WatchExpressionsView extends ViewPane {
 
 	private onContextMenu(e: ITreeContextMenuEvent<IExpression>): void {
 		const element = e.element;
-		const selection = this.tree.getSelection();
+		const context = this.getWatchContext(element);
+		// const selection = this.tree.getSelection();
 
 		this.watchItemType.set(element instanceof Expression ? 'expression' : element instanceof Variable ? 'variable' : undefined);
 		const actions: IAction[] = [];
 		const attributes = element instanceof Variable ? element.presentationHint?.attributes : undefined;
 		this.variableReadonly.set(!!attributes && attributes.indexOf('readOnly') >= 0 || !!element?.presentationHint?.lazy);
-		createAndFillInContextMenuActions(this.menu, { arg: element, shouldForwardArgs: true }, actions);
+		createAndFillInContextMenuActions(this.menu, { shouldForwardArgs: true }, actions);
 		this.contextMenuService.showContextMenu({
 			getAnchor: () => e.anchor,
 			getActions: () => actions,
-			getActionsContext: () => element && selection.includes(element) ? selection : element ? [element] : [],
+			getActionsContext: () => context
 		});
+	}
+
+	private getWatchContext(expression: IExpression | null): IWatchContext | undefined {
+		if (!expression) {
+			return undefined;
+		}
+
+		return {
+			sessionId: this.debugService.getViewModel().focusedSession?.getId(),
+			expressionId: expression.getId(),
+			memoryReference: expression.memoryReference,
+			name: expression.name,
+			reference: expression.reference,
+			type: expression.reference,
+			value: expression.value
+		};
 	}
 }
 
@@ -355,12 +382,28 @@ class WatchExpressionsRenderer extends AbstractExpressionsRenderer {
 		const menu = this.menuService.createMenu(MenuId.DebugWatchContext, contextKeyService);
 
 		const primary: IAction[] = [];
-		const context = expression;
+		const context = this.getWatchContext(expression);
 		createAndFillInContextMenuActions(menu, { arg: context, shouldForwardArgs: false }, { primary, secondary: [] }, 'inline');
 
 		actionBar.clear();
 		actionBar.context = context;
 		actionBar.push(primary, { icon: true, label: false });
+	}
+
+	protected getWatchContext(expression: IExpression | null): IWatchContext | undefined {
+		if (!expression) {
+			return undefined;
+		}
+
+		return {
+			sessionId: this.debugService.getViewModel().focusedSession?.getId(),
+			expressionId: expression.getId(),
+			memoryReference: expression.memoryReference,
+			name: expression.name,
+			reference: expression.reference,
+			type: expression.reference,
+			value: expression.value
+		};
 	}
 }
 
