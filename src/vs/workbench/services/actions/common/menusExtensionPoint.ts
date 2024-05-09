@@ -129,12 +129,6 @@ const apiMenus: IAPIMenu[] = [
 		proposed: 'debugContext'
 	},
 	{
-		key: 'debug/console/context',
-		id: MenuId.DebugConsoleContext,
-		description: localize('menus.debugConsoleContext', "The debug console context menu"),
-		proposed: 'debugContext'
-	},
-	{
 		key: 'notebook/variables/context',
 		id: MenuId.NotebookVariablesContext,
 		description: localize('menus.notebookVariablesContext', "The notebook variables view context menu")
@@ -266,7 +260,7 @@ const apiMenus: IAPIMenu[] = [
 		key: 'view/container/title',
 		id: MenuId.ViewContainerTitle,
 		description: localize('view.containerTitle', "The contributed view container title menu"),
-		proposed: 'debugContext'
+		proposed: 'viewContainerContext'
 	},
 	{
 		key: 'view/item/context',
