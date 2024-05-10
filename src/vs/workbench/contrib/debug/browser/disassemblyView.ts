@@ -6,7 +6,7 @@
 import { PixelRatio } from 'vs/base/browser/pixelRatio';
 import { $, Dimension, addStandardDisposableListener, append } from 'vs/base/browser/dom';
 import { IListAccessibilityProvider } from 'vs/base/browser/ui/list/listWidget';
-import { ITableRenderer, ITableVirtualDelegate } from 'vs/base/browser/ui/table/table';
+import { ITableContextMenuEvent, ITableRenderer, ITableVirtualDelegate } from 'vs/base/browser/ui/table/table';
 import { binarySearch2 } from 'vs/base/common/arrays';
 import { Color } from 'vs/base/common/color';
 import { Emitter } from 'vs/base/common/event';
@@ -44,13 +44,14 @@ import { isUri, sourcesEqual } from 'vs/workbench/contrib/debug/common/debugUtil
 import { IEditorService } from 'vs/workbench/services/editor/common/editorService';
 import { IEditorGroup } from 'vs/workbench/services/editor/common/editorGroupsService';
 import { IContextMenuService } from 'vs/platform/contextview/browser/contextView';
-import { MenuId } from 'vs/platform/actions/common/actions';
+import { IMenu, IMenuService, MenuId } from 'vs/platform/actions/common/actions';
 import { CommandsRegistry } from 'vs/platform/commands/common/commands';
-import { COPY_ADDRESS_ID, COPY_ADDRESS_LABEL, TOGGLE_BREAKPOINT_ID } from 'vs/workbench/contrib/debug/browser/debugCommands';
+import { COPY_ADDRESS_ID, COPY_ADDRESS_LABEL } from 'vs/workbench/contrib/debug/browser/debugCommands';
 import { IClipboardService } from 'vs/platform/clipboard/common/clipboardService';
-import { Action } from 'vs/base/common/actions';
+import { IAction } from 'vs/base/common/actions';
+import { createAndFillInContextMenuActions } from 'vs/platform/actions/browser/menuEntryActionViewItem';
 
-interface IDisassembledInstructionEntry {
+export interface IDisassembledInstructionEntry {
 	allowBreakpoint: boolean;
 	isBreakpointSet: boolean;
 	isBreakpointEnabled: boolean;
@@ -101,6 +102,7 @@ export class DisassemblyView extends EditorPane {
 	private _enableSourceCodeRender: boolean = true;
 	private _loadingLock: boolean = false;
 	private readonly _referenceToMemoryAddress = new Map<string, bigint>();
+	private menu: IMenu;
 
 	constructor(
 		group: IEditorGroup,
@@ -111,9 +113,13 @@ export class DisassemblyView extends EditorPane {
 		@IInstantiationService private readonly _instantiationService: IInstantiationService,
 		@IDebugService private readonly _debugService: IDebugService,
 		@IContextMenuService private readonly _contextMenuService: IContextMenuService,
+		@IMenuService menuService: IMenuService,
+		@IContextKeyService contextKeyService: IContextKeyService,
 	) {
 		super(DISASSEMBLY_VIEW_ID, group, telemetryService, themeService, storageService);
 
+		this.menu = menuService.createMenu(MenuId.DebugDisassemblyContext, contextKeyService);
+		this._register(this.menu);
 		this._disassembledInstructions = undefined;
 		this._onDidChangeStackFrame = this._register(new Emitter<void>({ leakWarningThreshold: 1000 }));
 		this._previousDebuggingState = _debugService.state;
@@ -191,20 +197,13 @@ export class DisassemblyView extends EditorPane {
 			return undefined;
 		}
 
+		return this.getAddressAndOffset(element);
+	}
+
+	getAddressAndOffset(element: IDisassembledInstructionEntry) {
 		const reference = element.instructionReference;
 		const offset = Number(element.address - this.getReferenceAddress(reference)!);
 		return { reference, offset, address: element.address };
-	}
-
-	protected getInstructionContext(instruction?: IDisassembledInstructionEntry): IDisassemblyContext | undefined {
-		if (!instruction) {
-			return undefined;
-		}
-
-		return {
-			sessionId: this.debugSession?.getId(),
-			instruction: instruction.instruction
-		};
 	}
 
 	protected createEditor(parent: HTMLElement): void {
@@ -293,30 +292,7 @@ export class DisassemblyView extends EditorPane {
 			}
 		}));
 
-		this._register(this._disassembledInstructions.onContextMenu(data => {
-			const context = this.getInstructionContext(data.element);
-			this._contextMenuService.showContextMenu({
-				menuId: MenuId.DebugDisassemblyContext,
-				menuActionOptions: { arg: context, shouldForwardArgs: false },
-				contextKeyService: this._disassembledInstructions?.contextKeyService,
-				getAnchor: () => data.anchor,
-				getActions: () => ([
-					new Action(TOGGLE_BREAKPOINT_ID, 'Toggle Breakpoint', undefined, true, () => {
-						const location = data.element;
-						if (location) {
-							const offset = Number(location.address - this.getReferenceAddress(location.instructionReference)!);
-							const bps = this._debugService.getModel().getInstructionBreakpoints();
-							const toRemove = bps.find(bp => bp.address === location.address);
-							if (toRemove) {
-								this._debugService.removeInstructionBreakpoints(toRemove.instructionReference, toRemove.offset);
-							} else {
-								this._debugService.addInstructionBreakpoint({ instructionReference: location.instructionReference, offset, address: location.address, canPersist: false });
-							}
-						}
-					})
-				])
-			});
-		}));
+		this._register(this._disassembledInstructions.onContextMenu(e => this.onContextMenu(e)));
 
 		this._register(this._debugService.getViewModel().onDidFocusStackFrame(({ stackFrame }) => {
 			if (this._disassembledInstructions && stackFrame?.instructionPointerReference) {
@@ -677,6 +653,28 @@ export class DisassemblyView extends EditorPane {
 	private clear() {
 		this._referenceToMemoryAddress.clear();
 		this._disassembledInstructions?.splice(0, this._disassembledInstructions.length, [disassemblyNotAvailable]);
+	}
+
+	private onContextMenu(e: ITableContextMenuEvent<IDisassembledInstructionEntry>): void {
+		const context = this.getDisassemblyContext(e.element);
+		const actions: IAction[] = [];
+		createAndFillInContextMenuActions(this.menu, { shouldForwardArgs: true }, actions);
+		this._contextMenuService.showContextMenu({
+			getAnchor: () => e.anchor,
+			getActions: () => actions,
+			getActionsContext: (_e, contributedAction) => contributedAction ? context : e.element
+		});
+	}
+
+	private getDisassemblyContext(instruction?: IDisassembledInstructionEntry): IDisassemblyContext | undefined {
+		if (!instruction) {
+			return undefined;
+		}
+
+		return {
+			sessionId: this.debugSession?.getId(),
+			instruction: instruction.instruction
+		};
 	}
 }
 
@@ -1058,10 +1056,10 @@ CommandsRegistry.registerCommand({
 		description: COPY_ADDRESS_LABEL,
 	},
 	id: COPY_ADDRESS_ID,
-	handler: async (accessor: ServicesAccessor, arg?: IDisassemblyContext) => {
-		if (arg?.instruction?.address) {
+	handler: async (accessor: ServicesAccessor, entry?: IDisassembledInstructionEntry) => {
+		if (entry?.instruction?.address) {
 			const clipboardService = accessor.get(IClipboardService);
-			clipboardService.writeText(arg.instruction.address);
+			clipboardService.writeText(entry.instruction.address);
 		}
 	}
 });
