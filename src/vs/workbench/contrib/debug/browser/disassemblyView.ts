@@ -69,7 +69,7 @@ export interface IDisassembledInstructionEntry {
 	address: bigint;
 }
 
-export interface IDisassemblyContext {
+interface IDisassemblyContext {
 	sessionId: string | undefined;
 	instruction: DebugProtocol.DisassembledInstruction;
 }

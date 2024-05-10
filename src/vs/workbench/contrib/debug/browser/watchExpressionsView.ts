@@ -41,7 +41,7 @@ const MAX_VALUE_RENDER_LENGTH_IN_VIEWLET = 1024;
 let ignoreViewUpdates = false;
 let useCachedEvaluation = false;
 
-export interface IWatchContext {
+interface IWatchContext {
 	sessionId: string | undefined;
 	expressionId: string;
 	memoryReference?: string;
@@ -235,7 +235,7 @@ export class WatchExpressionsView extends ViewPane {
 		this.contextMenuService.showContextMenu({
 			getAnchor: () => e.anchor,
 			getActions: () => actions,
-			getActionsContext: () => context
+			getActionsContext: (_e, contributedAction) => contributedAction ? context : element
 		});
 	}
 

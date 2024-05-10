@@ -8,7 +8,7 @@ import { KeyCode, KeyMod } from 'vs/base/common/keyCodes';
 import { List } from 'vs/base/browser/ui/list/listWidget';
 import { KeybindingsRegistry, KeybindingWeight } from 'vs/platform/keybinding/common/keybindingsRegistry';
 import { IListService } from 'vs/platform/list/browser/listService';
-import { IDebugService, IEnablement, CONTEXT_BREAKPOINTS_FOCUSED, CONTEXT_WATCH_EXPRESSIONS_FOCUSED, CONTEXT_VARIABLES_FOCUSED, EDITOR_CONTRIBUTION_ID, IDebugEditorContribution, CONTEXT_IN_DEBUG_MODE, CONTEXT_EXPRESSION_SELECTED, IConfig, IStackFrame, IThread, IDebugSession, CONTEXT_DEBUG_STATE, IDebugConfiguration, CONTEXT_JUMP_TO_CURSOR_SUPPORTED, REPL_VIEW_ID, CONTEXT_DEBUGGERS_AVAILABLE, State, getStateLabel, CONTEXT_BREAKPOINT_INPUT_FOCUSED, CONTEXT_FOCUSED_SESSION_IS_ATTACH, VIEWLET_ID, CONTEXT_DISASSEMBLY_VIEW_FOCUS, CONTEXT_IN_DEBUG_REPL, CONTEXT_STEP_INTO_TARGETS_SUPPORTED, isFrameDeemphasized, IExpression } from 'vs/workbench/contrib/debug/common/debug';
+import { IDebugService, IEnablement, CONTEXT_BREAKPOINTS_FOCUSED, CONTEXT_WATCH_EXPRESSIONS_FOCUSED, CONTEXT_VARIABLES_FOCUSED, EDITOR_CONTRIBUTION_ID, IDebugEditorContribution, CONTEXT_IN_DEBUG_MODE, CONTEXT_EXPRESSION_SELECTED, IConfig, IStackFrame, IThread, IDebugSession, CONTEXT_DEBUG_STATE, IDebugConfiguration, CONTEXT_JUMP_TO_CURSOR_SUPPORTED, REPL_VIEW_ID, CONTEXT_DEBUGGERS_AVAILABLE, State, getStateLabel, CONTEXT_BREAKPOINT_INPUT_FOCUSED, CONTEXT_FOCUSED_SESSION_IS_ATTACH, VIEWLET_ID, CONTEXT_DISASSEMBLY_VIEW_FOCUS, CONTEXT_IN_DEBUG_REPL, CONTEXT_STEP_INTO_TARGETS_SUPPORTED, isFrameDeemphasized } from 'vs/workbench/contrib/debug/common/debug';
 import { Expression, Variable, Breakpoint, FunctionBreakpoint, DataBreakpoint, Thread } from 'vs/workbench/contrib/debug/common/debugModel';
 import { IExtensionsViewPaneContainer, VIEWLET_ID as EXTENSIONS_VIEWLET_ID } from 'vs/workbench/contrib/extensions/common/extensions';
 import { ICodeEditor, isCodeEditor } from 'vs/editor/browser/editorBrowser';
@@ -36,7 +36,6 @@ import { showLoadedScriptMenu } from 'vs/workbench/contrib/debug/common/loadedSc
 import { showDebugSessionMenu } from 'vs/workbench/contrib/debug/browser/debugSessionPicker';
 import { TEXT_FILE_EDITOR_ID } from 'vs/workbench/contrib/files/common/files';
 import { ILocalizedString } from 'vs/platform/action/common/action';
-import { IWatchContext } from 'vs/workbench/contrib/debug/browser/watchExpressionsView';
 
 export const ADD_CONFIGURATION_ID = 'debug.addConfiguration';
 export const COPY_ADDRESS_ID = 'editor.debug.action.copyAddress';
@@ -829,24 +828,20 @@ KeybindingsRegistry.registerCommandAndKeybindingRule({
 	when: CONTEXT_WATCH_EXPRESSIONS_FOCUSED,
 	primary: KeyCode.F2,
 	mac: { primary: KeyCode.Enter },
-	handler: (accessor: ServicesAccessor, context: IWatchContext | undefined) => {
-		let expression: IExpression | undefined;
+	handler: (accessor: ServicesAccessor, expression: Expression | unknown) => {
 		const debugService = accessor.get(IDebugService);
-		const listService = accessor.get(IListService);
-		const focused = listService.lastFocusedList;
-
-		if (focused) {
-			const elements = focused.getFocus();
-			if (Array.isArray(elements)) {
-				if (context) {
-					expression = elements.find(element => element.getId() === context.expressionId);
-				} else if (elements[0] instanceof Expression) {
+		if (!(expression instanceof Expression)) {
+			const listService = accessor.get(IListService);
+			const focused = listService.lastFocusedList;
+			if (focused) {
+				const elements = focused.getFocus();
+				if (Array.isArray(elements) && elements[0] instanceof Expression) {
 					expression = elements[0];
 				}
 			}
 		}
 
-		if (expression) {
+		if (expression instanceof Expression) {
 			debugService.getViewModel().setSelectedExpression(expression, false);
 		}
 	}
@@ -854,25 +849,10 @@ KeybindingsRegistry.registerCommandAndKeybindingRule({
 
 CommandsRegistry.registerCommand({
 	id: SET_EXPRESSION_COMMAND_ID,
-	handler: async (accessor: ServicesAccessor, context: IWatchContext | undefined) => {
-		if (context) {
-			let expression: IExpression | undefined;
-			const debugService = accessor.get(IDebugService);
-			const listService = accessor.get(IListService);
-			const focused = listService.lastFocusedList;
-
-			if (focused) {
-				const elements = focused.getFocus();
-				if (Array.isArray(elements)) {
-					if (context) {
-						expression = elements.find(element => element.getId() === context.expressionId);
-					}
-				}
-			}
-
-			if (expression) {
-				debugService.getViewModel().setSelectedExpression(expression, true);
-			}
+	handler: async (accessor: ServicesAccessor, expression: Expression | unknown) => {
+		const debugService = accessor.get(IDebugService);
+		if (expression instanceof Expression || expression instanceof Variable) {
+			debugService.getViewModel().setSelectedExpression(expression, true);
 		}
 	}
 });
@@ -903,11 +883,11 @@ KeybindingsRegistry.registerCommandAndKeybindingRule({
 	when: ContextKeyExpr.and(CONTEXT_WATCH_EXPRESSIONS_FOCUSED, CONTEXT_EXPRESSION_SELECTED.toNegated()),
 	primary: KeyCode.Delete,
 	mac: { primary: KeyMod.CtrlCmd | KeyCode.Backspace },
-	handler: (accessor: ServicesAccessor, context: IWatchContext | undefined) => {
+	handler: (accessor: ServicesAccessor, expression: Expression | unknown) => {
 		const debugService = accessor.get(IDebugService);
 
-		if (context && context.expressionId) {
-			debugService.removeWatchExpressions(context.expressionId);
+		if (expression instanceof Expression) {
+			debugService.removeWatchExpressions(expression.getId());
 			return;
 		}
 

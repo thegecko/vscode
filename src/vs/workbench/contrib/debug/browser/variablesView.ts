@@ -41,7 +41,6 @@ import { IViewDescriptorService } from 'vs/workbench/common/views';
 import { AbstractExpressionDataSource, AbstractExpressionsRenderer, IExpressionTemplateData, IInputBoxOptions, renderExpressionValue, renderVariable, renderViewTree } from 'vs/workbench/contrib/debug/browser/baseDebugView';
 import { ADD_TO_WATCH_ID, ADD_TO_WATCH_LABEL, COPY_EVALUATE_PATH_ID, COPY_EVALUATE_PATH_LABEL, COPY_VALUE_ID, COPY_VALUE_LABEL } from 'vs/workbench/contrib/debug/browser/debugCommands';
 import { LinkDetector } from 'vs/workbench/contrib/debug/browser/linkDetector';
-import { IWatchContext } from 'vs/workbench/contrib/debug/browser/watchExpressionsView';
 import { CONTEXT_BREAK_WHEN_VALUE_CHANGES_SUPPORTED, CONTEXT_BREAK_WHEN_VALUE_IS_ACCESSED_SUPPORTED, CONTEXT_BREAK_WHEN_VALUE_IS_READ_SUPPORTED, CONTEXT_VARIABLES_FOCUSED, DataBreakpointSetType, DebugVisualizationType, IDataBreakpointInfoResponse, IDebugService, IExpression, IScope, IStackFrame, IViewModel, VARIABLES_VIEW_ID } from 'vs/workbench/contrib/debug/common/debug';
 import { getContextForVariable } from 'vs/workbench/contrib/debug/common/debugContext';
 import { ErrorScope, Expression, Scope, StackFrame, Variable, VisualizedExpression, getUriForDebugMemory } from 'vs/workbench/contrib/debug/common/debugModel';
@@ -660,12 +659,12 @@ CommandsRegistry.registerCommand({
 		description: COPY_VALUE_LABEL,
 	},
 	id: COPY_VALUE_ID,
-	handler: async (accessor: ServicesAccessor, arg: Variable | IWatchContext | IVariablesContext, ctx?: (Variable | Expression)[]) => {
+	handler: async (accessor: ServicesAccessor, arg: Variable | Expression | IVariablesContext, ctx?: (Variable | Expression)[]) => {
 		const debugService = accessor.get(IDebugService);
 		const clipboardService = accessor.get(IClipboardService);
 		let elementContext = '';
 		let elements: (Variable | Expression)[];
-		if (arg instanceof Variable || (arg && (arg as IWatchContext).expressionId)) {
+		if (arg instanceof Variable || arg instanceof Expression) {
 			elementContext = 'watch';
 			elements = ctx ? ctx : [];
 		} else {
@@ -702,17 +701,17 @@ const HEX_EDITOR_EDITOR_ID = 'hexEditor.hexedit';
 
 CommandsRegistry.registerCommand({
 	id: VIEW_MEMORY_ID,
-	handler: async (accessor: ServicesAccessor, arg: IVariablesContext | IWatchContext, ctx?: (Variable | Expression)[]) => {
+	handler: async (accessor: ServicesAccessor, arg: IVariablesContext | IExpression, ctx?: (Variable | Expression)[]) => {
 		const debugService = accessor.get(IDebugService);
 		let sessionId: string;
 		let memoryReference: string;
-		if ('sessionId' in arg && 'variable' in arg) { // IVariablesContext
+		if ('sessionId' in arg) { // IVariablesContext
 			if (!arg.sessionId || !arg.variable.memoryReference) {
 				return;
 			}
 			sessionId = arg.sessionId;
 			memoryReference = arg.variable.memoryReference;
-		} else { // IWatchContext
+		} else { // IExpression
 			if (!arg.memoryReference) {
 				return;
 			}
