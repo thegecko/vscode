@@ -5819,6 +5819,18 @@ declare namespace monaco.editor {
 		 */
 		readonly onDidChangeHiddenAreas: IEvent<void>;
 		/**
+		 * Some editor operations fire multiple events at once.
+		 * To allow users to react to multiple events fired by a single operation,
+		 * the editor fires a begin update before the operation and an end update after the operation.
+		 * Whenever the editor fires `onBeginUpdate`, it will also fire `onEndUpdate` once the operation finishes.
+		 * Note that not all operations are bracketed by `onBeginUpdate` and `onEndUpdate`.
+		*/
+		readonly onBeginUpdate: IEvent<void>;
+		/**
+		 * Fires after the editor completes the operation it fired `onBeginUpdate` for.
+		*/
+		readonly onEndUpdate: IEvent<void>;
+		/**
 		 * Saves current view state of the editor in a serializable object.
 		 */
 		saveViewState(): ICodeEditorViewState | null;
@@ -7395,7 +7407,7 @@ declare namespace monaco.languages {
 	 * A provider that can provide document highlights across multiple documents.
 	 */
 	export interface MultiDocumentHighlightProvider {
-		selector: LanguageFilter;
+		readonly selector: LanguageSelector;
 		/**
 		 * Provide a Map of Uri --> document highlights, like all occurrences of a variable or
 		 * all exit-points of a function.
