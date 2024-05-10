@@ -82,6 +82,7 @@ interface InputBoxData {
 interface IBreakpointContext {
 	sessionId: string | undefined;
 	breakpoint: DebugProtocol.SourceBreakpoint | DebugProtocol.FunctionBreakpoint | DebugProtocol.DataBreakpoint | DebugProtocol.InstructionBreakpoint | undefined;
+	path?: string;
 }
 
 export class BreakpointsView extends ViewPane {
@@ -286,7 +287,6 @@ export class BreakpointsView extends ViewPane {
 
 	private async getBreakpointContext(breakpoint?: IBaseBreakpoint): Promise<IBreakpointContext | undefined> {
 		const debugSession = this.debugService.getViewModel()?.focusedSession;
-
 		if (!debugSession) {
 			return;
 		}
@@ -294,6 +294,7 @@ export class BreakpointsView extends ViewPane {
 		if (breakpoint instanceof Breakpoint) {
 			return {
 				sessionId: debugSession.getId(),
+				path: breakpoint.uri.toString(),
 				breakpoint: breakpoint.toDAP()
 			};
 		} else if (breakpoint instanceof FunctionBreakpoint) {

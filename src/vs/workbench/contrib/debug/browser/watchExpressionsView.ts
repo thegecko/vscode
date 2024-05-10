@@ -43,11 +43,9 @@ let useCachedEvaluation = false;
 
 interface IWatchContext {
 	sessionId: string | undefined;
+	type: string | undefined;
 	expressionId: string;
-	memoryReference?: string;
 	name: string;
-	reference?: number;
-	type?: number;
 	value: string;
 }
 
@@ -225,7 +223,7 @@ export class WatchExpressionsView extends ViewPane {
 	private onContextMenu(e: ITreeContextMenuEvent<IExpression>): void {
 		const element = e.element;
 		const context = this.getWatchContext(element);
-		// const selection = this.tree.getSelection();
+		const selection = this.tree.getSelection();
 
 		this.watchItemType.set(element instanceof Expression ? 'expression' : element instanceof Variable ? 'variable' : undefined);
 		const actions: IAction[] = [];
@@ -235,7 +233,7 @@ export class WatchExpressionsView extends ViewPane {
 		this.contextMenuService.showContextMenu({
 			getAnchor: () => e.anchor,
 			getActions: () => actions,
-			getActionsContext: (_e, contributedAction) => contributedAction ? context : element
+			getActionsContext: (_e, contributedAction) => contributedAction ? context : element && selection.includes(element) ? selection : element ? [element] : [],
 		});
 	}
 
@@ -247,10 +245,8 @@ export class WatchExpressionsView extends ViewPane {
 		return {
 			sessionId: this.debugService.getViewModel().focusedSession?.getId(),
 			expressionId: expression.getId(),
-			memoryReference: expression.memoryReference,
 			name: expression.name,
-			reference: expression.reference,
-			type: expression.reference,
+			type: expression.type,
 			value: expression.value
 		};
 	}
@@ -382,28 +378,12 @@ class WatchExpressionsRenderer extends AbstractExpressionsRenderer {
 		const menu = this.menuService.createMenu(MenuId.DebugWatchContext, contextKeyService);
 
 		const primary: IAction[] = [];
-		const context = this.getWatchContext(expression);
+		const context = expression;
 		createAndFillInContextMenuActions(menu, { arg: context, shouldForwardArgs: false }, { primary, secondary: [] }, 'inline');
 
 		actionBar.clear();
 		actionBar.context = context;
 		actionBar.push(primary, { icon: true, label: false });
-	}
-
-	protected getWatchContext(expression: IExpression | null): IWatchContext | undefined {
-		if (!expression) {
-			return undefined;
-		}
-
-		return {
-			sessionId: this.debugService.getViewModel().focusedSession?.getId(),
-			expressionId: expression.getId(),
-			memoryReference: expression.memoryReference,
-			name: expression.name,
-			reference: expression.reference,
-			type: expression.reference,
-			value: expression.value
-		};
 	}
 }
 
